@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raazim Tech | Support Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #020617;
+            --bg-surface: #0f172a;
+            --bg-accent: #1e293b;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --success: #10b981;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-deep); 
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* --- UI Components --- */
+
+        /* Left Rail: Navigation & Stats */
+        #nav-rail {
+            width: 80px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 30px;
+        }
+        .rail-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            background: var(--bg-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid transparent;
+        }
+        /* Spinner styles */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+            display: none; /* Hidden by default */
+            margin-left: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .rail-icon:hover { border-color: var(--primary); color: var(--primary); }
+        .rail-icon.active { background: var(--primary); color: white; }
+
+        /* Sidebar: Conversation List */
+        #sidebar {
+            width: 350px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-header h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 15px; }
+        .search-box {
+            background: var(--bg-accent);
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border);
+        }
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: white;
+            margin-left: 10px;
+            outline: none;
+            width: 100%;
+        }
+
+        #inbox-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .chat-item {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            gap: 15px;
+            position: relative;
+        }
+        .chat-item:hover { background: rgba(255,255,255,0.02); }
+        .chat-item.active { background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary); }
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--primary), #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .chat-info { flex: 1; min-width: 0; }
+        .chat-info .top { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .chat-info h4 { font-size: 0.9rem; font-weight: 600; }
+        .chat-info .time { font-size: 0.75rem; color: var(--text-dim); }
+        .chat-info .preview { font-size: 0.8rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .status-dot { width: 10px; height: 10px; background: var(--success); border-radius: 50%; position: absolute; bottom: 20px; right: 24px; display: none; }
+
+        /* Main: Chat Interface */
+        #main-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-deep);
+        }
+        .main-header {
+            padding: 20px 30px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-meta-top h3 { font-size: 1.1rem; }
+        .user-meta-top span { font-size: 0.8rem; color: var(--success); }
+
+        #chat-scroller {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background-image: radial-gradient(var(--bg-accent) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        .msg-wrapper { display: flex; flex-direction: column; max-width: 70%; }
+        .msg-wrapper.customer { align-self: flex-start; }
+        .msg-wrapper.support { align-self: flex-end; }
+        
+        .msg-bubble {
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            position: relative;
+        }
+        .customer .msg-bubble { background: var(--bg-accent); border-bottom-left-radius: 2px; border: 1px solid var(--border); }
+        .support .msg-bubble { background: var(--primary); color: white; border-bottom-right-radius: 2px; box-shadow: 0 4px 15px var(--primary-glow); }
+        
+        .msg-time { font-size: 0.7rem; color: var(--text-dim); margin-top: 5px; }
+        .support .msg-time { text-align: right; }
+
+        /* Input Deck */
+        #input-deck {
+            padding: 20px 30px;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border);
+        }
+        .toolbar { display: flex; gap: 15px; margin-bottom: 15px; }
+        .tool-btn { font-size: 0.8rem; color: var(--text-dim); cursor: pointer; border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; transition: 0.2s; }
+        .tool-btn:hover { color: white; background: var(--bg-accent); }
+
+        .input-wrapper { display: flex; gap: 15px; align-items: flex-end; }
+        #admin-textarea {
+            flex: 1;
+            background: var(--bg-accent);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            color: white;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 50px;
+            max-height: 150px;
+        }
+        #send-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex; /* Align text and spinner */
+            align-items: center;
+            justify-content: center;
+        }
+        #send-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--primary-glow); }
+
+        /* Right Rail: Intelligence */
+        #intel-rail {
+            width: 300px;
+            background: var(--bg-surface);
+            border-left: 1px solid var(--border);
+            padding: 30px;
+            display: none; /* Shown when user selected */
+        }
+        .intel-section { margin-bottom: 30px; }
+        .intel-section h5 { color: var(--text-dim); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; margin-bottom: 15px; }
+        .data-card { background: var(--bg-accent); padding: 15px; border-radius: 12px; border: 1px solid var(--border); font-size: 0.85rem; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .data-row span:last-child { color: var(--primary); font-weight: 600; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-accent); border-radius: 10px; }
+
+        /* New style for chat source in inbox */
+        .chat-source {
+            font-size: 0.7rem;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        /* --- Responsiveness --- */
+        @media (max-width: 1100px) {
+            #intel-rail { display: none !important; }
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow-y: auto; height: 100dvh; }
+            #nav-rail { width: 100%; height: 60px; flex-direction: row; border-right: none; border-bottom: 1px solid var(--border); padding: 0 20px; gap: 20px; flex-shrink: 0; justify-content: center; }
+            #sidebar { width: 100%; height: 350px; flex-shrink: 0; border-right: none; border-bottom: 1px solid var(--border); }
+            #main-view { width: 100%; flex: 1; }
+            .msg-wrapper { max-width: 85%; }
+        }
+
+        @media (max-width: 480px) {
+            #sidebar { height: 280px; }
+            .main-header { padding: 15px 20px; }
+            #chat-scroller { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="nav-rail">
+        <div class="logo-area" style="color: var(--primary); font-weight: 900; font-size: 1.5rem;">R</div>
+        <div class="rail-icon active">📥</div>
+        <div class="rail-icon">📊</div>
+        <div class="rail-icon">⚙️</div>
+    </div>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h2>Inbox</h2>
+            <div class="search-box">
+                <span>🔍</span>
+                <input type="text" placeholder="Search conversations...">
+            </div>
+        </div>
+        <div id="inbox-list">
+            </div>
+    </div>
+
+    <div id="main-view">
+        <div class="main-header" id="chat-header-ui" style="visibility: hidden;">
+            <div class="user-meta-top">
+                <h3 id="active-user-name">Select a User</h3>
+                <span>● Active Now</span>
+            </div>
+            <div class="actions">
+                <button class="tool-btn" onclick="archiveChat()">Archive Session</button>
+            </div>
+        </div>
+
+        <div id="chat-scroller">
+            <div style="margin: auto; text-align: center; color: var(--text-dim);">
+                <h3>Welcome, Raazim Admin</h3>
+                <p>Select a customer from the sidebar to begin live support.</p>
+            </div>
+        </div>
+
+        <div id="input-deck">
+            <div class="toolbar">
+                <div class="tool-btn" onclick="insertCanned('Hi! How can I assist you with Raazim Tech solutions today?')">Greeting</div>
+                <div class="tool-btn" onclick="insertCanned('Thank you for your patience. I am checking our server status now.')">Status Check</div>
+                <div class="tool-btn" onclick="insertCanned('I have escalated this ticket to our senior developers. We will get back to you.')">Escalate</div>
+            </div>
+            <div class="input-wrapper">
+                <textarea id="admin-textarea" placeholder="Type your reply here..." onkeypress="handleEnter(event)"></textarea>
+                <button id="send-btn" onclick="sendReply()">
+                    <span>Send Message</span><span class="spinner" id="send-spinner-cs"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="intel-rail">
+        <div class="intel-section">
+            <h5>Customer Intelligence</h5>
+            <div class="data-card">
+                <div class="data-row"><span>ID:</span> <span id="intel-id">-</span></div>
+                <div class="data-row"><span>Region:</span> <span>Global</span></div>
+                <div class="data-row"><span>Status:</span> <span>Verified</span></div>
+                <div class="data-row"><span>Source:</span> <span id="intel-source-value">-</span></div> <!-- New row for source -->
+            </div>
+        </div>
+        <div class="intel-section">
+            <h5>Session Stats</h5>
+            <div class="data-card">
+                <div class="data-row"><span>Total Msgs:</span> <span id="intel-total">0</span></div>
+                <div class="data-row"><span>Last Seen:</span> <span id="intel-seen">Just now</span></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const BIN_ID = '69d76cd7856a68218914733e';
+    const KEY = '$2a$10$boob7HiU/Qq/iPITpxeE0.knWZ6rRbVaVVdBwmJlAgmAbrlr2gX1.';
+    
+    let db = { chats: {} };
+    let currentUserId = null;
+
+    // --- Core Sync Logic ---
+    async function sync() {
+        try {
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { 'X-Master-Key': KEY, "X-Bin-Meta": "false" }
+            });
+            if (!res.ok) return;
+            const latest = await res.json();
+            db = (latest && latest.chats) ? latest : { chats: {} };
+            renderInbox();
+            if(currentUserId) renderMessages();
+        } catch (e) {
+            console.error("Critical Sync Error: Check JSONBin connectivity.");
+        }
+    }
+
+    function renderInbox() {
+        const list = document.getElementById('inbox-list');
+        const sortedUsers = Object.keys(db.chats || {}).sort((a,b) => {
+            const lastA = new Date(db.chats[a].messages.slice(-1)[0]?.time || 0);
+            const lastB = new Date(db.chats[b].messages.slice(-1)[0]?.time || 0);
+            return lastB - lastA;
+        });
+
+        list.innerHTML = '';
+        sortedUsers.forEach(uid => {
+            const lastMsg = db.chats[uid].messages.slice(-1)[0];
+            const div = document.createElement('div');
+            const chatSource = db.chats[uid].source ? `<span class="chat-source">${db.chats[uid].source}</span>` : '';
+            div.className = `chat-item ${uid === currentUserId ? 'active' : ''}`;
+            div.onclick = () => selectUser(uid);
+            
+            div.innerHTML = `
+                <div class="avatar">${uid.charAt(0)}</div>
+                <div class="chat-info">
+                    <div class="top">
+                        <h4>${uid}</h4>
+                        ${chatSource}
+                        <span class="time">${lastMsg ? formatTime(lastMsg.time) : ''}</span>
+                    </div>
+                    <div class="preview">${lastMsg ? lastMsg.text : 'New conversation started'}</div>
+                </div>
+                ${lastMsg && lastMsg.sender === 'customer' ? '<div class="status-dot" style="display:block"></div>' : ''}
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function selectUser(uid) {
+        currentUserId = uid;
+        document.getElementById('chat-header-ui').style.visibility = 'visible';
+        document.getElementById('intel-rail').style.display = 'block';
+        document.getElementById('active-user-name').innerText = uid;
+        
+        // Update Intelligence Rail
+        document.getElementById('intel-id').innerText = uid;
+        document.getElementById('intel-total').innerText = db.chats[uid].messages.length;
+        document.getElementById('intel-source-value').innerText = db.chats[uid].source || 'Unknown'; // Display source
+
+        renderInbox();
+        renderMessages();
+    }
+
+    function renderMessages() {
+        const scroller = document.getElementById('chat-scroller');
+        scroller.innerHTML = '';
+        const msgs = db.chats[currentUserId].messages;
+
+        msgs.forEach(m => {
+            const wrap = document.createElement('div');
+            wrap.className = `msg-wrapper ${m.sender}`;
+            wrap.innerHTML = `
+                <div class="msg-bubble">${m.text}</div>
+                <div class="msg-time">${formatTime(m.time)}</div>
+            `;
+            scroller.appendChild(wrap);
+        });
+        scroller.scrollTop = scroller.scrollHeight;
+    }
+
+    async function sendReply() {
+        const input = document.getElementById('admin-textarea');
+        if(!currentUserId || !input.value.trim()) return;
+
+        const msgText = input.value.trim();
+        const sendBtn = document.getElementById('send-btn');
+        const btnText = sendBtn.querySelector('span');
+        const spinner = document.getElementById('send-spinner-cs');
+
+        try {
+            sendBtn.disabled = true;
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { 'X-Master-Key': KEY, "X-Bin-Meta": "false" }
+            });
+            if (res.ok) {
+                const latest = await res.json();
+                if (latest && latest.chats) db = latest;
+            }
+
+            if (!db.chats[currentUserId]) db.chats[currentUserId] = { messages: [] };
+            db.chats[currentUserId].messages.push({
+                sender: 'support',
+                text: msgText,
+                time: new Date().toISOString()
+            });
+
+            renderMessages();
+            input.value = '';
+
+            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': KEY },
+                body: JSON.stringify(db)
+            });
+            sync();
+        } catch (e) {
+            console.error("Reply failed:", e);
+        } finally {
+            sendBtn.disabled = false;
+            btnText.style.display = 'inline';
+            spinner.style.display = 'none';
+        }
+    }
+
+    // --- Helpers ---
+    function formatTime(iso) {
+        const d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function insertCanned(text) {
+        document.getElementById('admin-textarea').value = text;
+    }
+
+    function handleEnter(e) {
+        if(e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendReply();
+        }
+    }
+
+    function archiveChat() {
+        if(confirm("Confirm archiving this session? This will remove it from active view.")) {
+            // Logic to delete or move user in JSON here
+        }
+    }
+
+    // Poll every 3.5 seconds
+    setInterval(sync, 2000); // Reduced polling interval for faster updates
+    sync();
+</script>
+</body>
+</html>
